@@ -106,6 +106,13 @@ header h1 {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
+/* --- VÔ HIỆU HÓA BÀN CỜ --- */
+.board.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  /* Ngăn chặn mọi sự kiện click */
+}
+
 /* --- Ô CỜ (SỬA LỖI CO DÃN) --- */
 .square {
   /* width và height không cần thiết vì grid đã quản lý */
@@ -293,4 +300,72 @@ header h1 {
 
 .global-status {
   margin-top: 1.5rem;
+}
+
+/* --- GIAO DIỆN SẢNH CHỜ (LOBBY) --- */
+.player-name-input {
+  margin-bottom: 1rem;
+}
+
+.instructions-button {
+  background: none;
+  border: 1px solid #4b5563;
+  color: #9ca3af;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.instructions-button:hover {
+  background-color: #374151;
+  color: white;
+}
+
+/* --- HIỂN THỊ NGƯỜI CHƠI & ĐẾM CLICK --- */
+.players-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+}
+
+.player-card {
+  background-color: var(--square-bg);
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  text-align: center;
+  width: 40%;
+  border-bottom: 4px solid;
+}
+
+.player-card.player-X {
+  border-color: var(--player-x-color);
+}
+
+.player-card.player-O {
+  border-color: var(--player-o-color);
+}
+
+.player-name {
+  display: block;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-clicks {
+  font-size: 0.9rem;
+  color: #d1d5db;
+}
+
+.vs-separator {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #6b7280;
 }
