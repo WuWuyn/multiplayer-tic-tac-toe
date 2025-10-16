@@ -1,25 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Board from './components/Board';
-import './App.css'; // Import file CSS
+import './App.css';
 
 const App = () => {
-  const [board, setBoard] = useState(Array(25).fill(null));
-  const [player, setPlayer] = useState(null);
-  const [currentPlayer, setCurrentPlayer] = useState(null);
+  const [board, setBoard] = useState(Array(25).fill(0));
+  const [player, setPlayer] = useState(null); // 'ODD' or 'EVEN'
   const [status, setStatus] = useState('Đang kết nối đến máy chủ...');
   const [winner, setWinner] = useState(null);
   const [winningLine, setWinningLine] = useState([]);
-  const [clickCounts, setClickCounts] = useState({ X: 0, O: 0 });
   const [pendingMove, setPendingMove] = useState(null);
   const [rematchState, setRematchState] = useState({ requestedByMe: false, requestedByOpponent: false });
 
   const socket = useRef(null);
 
-  const updateStatusMessage = useCallback((currentTurn, myPlayer, currentWinner) => {
+  const updateStatusMessage = useCallback((myPlayer, currentWinner) => {
     if (currentWinner) {
-      if (currentWinner === 'DRAW') setStatus('Kết quả: HÒA!');
-      else if (currentWinner === 'DISCONNECT') setStatus('Đối thủ đã thoát. Trò chơi kết thúc.');
-      else setStatus(`Người thắng là ${currentWinner}!`);
+      if (currentWinner === 'DISCONNECT') setStatus('Đối thủ đã thoát. Trò chơi kết thúc.');
+      else {
+        const winnerText = currentWinner === 'ODD' ? 'LẺ (ODD)' : 'CHẴN (EVEN)';
+        setStatus(`Người thắng là phe ${winnerText}!`);
+      }
       return;
     }
 
@@ -28,9 +28,10 @@ const App = () => {
       return;
     }
 
-    if (currentTurn === myPlayer) setStatus('Đến lượt bạn!');
-    else setStatus(`Đang chờ đối thủ (${currentTurn}) đi...`);
+    setStatus('Trận đấu đang diễn ra!');
+
   }, []);
+
 
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8080');
@@ -49,9 +50,7 @@ const App = () => {
     };
 
     return () => {
-      if (socket.current) {
-        socket.current.close();
-      }
+      if (socket.current) socket.current.close();
     };
   }, []);
 
@@ -59,43 +58,36 @@ const App = () => {
     switch (data.type) {
       case 'PLAYER_ASSIGNED':
         setPlayer(data.player);
+        updateStatusMessage(data.player, null);
+        break;
+      case 'WAITING_FOR_OPPONENT':
         setStatus('Đang chờ đối thủ...');
         break;
       case 'GAME_START':
         setBoard(data.board);
-        setCurrentPlayer(data.currentPlayer);
-        setClickCounts(data.clickCounts);
         setWinner(null);
         setWinningLine([]);
         setRematchState({ requestedByMe: false, requestedByOpponent: false });
-        updateStatusMessage(data.currentPlayer, player || data.player, null);
+        updateStatusMessage(player, null);
         break;
       case 'GAME_UPDATE':
         setBoard(data.board);
-        setCurrentPlayer(data.currentPlayer);
-        setClickCounts(data.clickCounts);
-        updateStatusMessage(data.currentPlayer, player, null);
-        break;
+        break; // Không cần cập nhật status vì nó không đổi
       case 'GAME_OVER':
         setBoard(data.board);
-        setCurrentPlayer(null);
         setWinner(data.winner);
         setWinningLine(data.winningLine || []);
-        setClickCounts(data.clickCounts);
-        updateStatusMessage(null, player, data.winner);
+        updateStatusMessage(player, data.winner);
         break;
       case 'REMATCH_REQUESTED':
-        setPlayer(p => {
-          if (data.player !== p) {
-            setRematchState(prev => ({ ...prev, requestedByOpponent: true }));
-            setStatus(`Đối thủ muốn chơi lại...`);
-          }
-          return p;
-        });
+        if (data.player !== player) {
+          setRematchState(prev => ({ ...prev, requestedByOpponent: true }));
+          setStatus(`Đối thủ muốn chơi lại...`);
+        }
         break;
       case 'OPPONENT_DISCONNECTED':
         setWinner('DISCONNECT');
-        updateStatusMessage(null, player, 'DISCONNECT');
+        updateStatusMessage(player, 'DISCONNECT');
         break;
       case 'ERROR':
         setStatus(`Lỗi: ${data.message}`);
@@ -104,12 +96,16 @@ const App = () => {
   };
 
   const handleSquareClick = (index) => {
-    if (socket.current && currentPlayer === player && board[index] === null && !winner) {
+    // Cho phép click nếu game đang diễn ra (chưa có người thắng)
+    if (socket.current && !winner) {
+      // Optimistic update
       const newBoard = [...board];
-      newBoard[index] = player;
+      newBoard[index] += 1;
       setBoard(newBoard);
       setPendingMove(index);
-      socket.current.send(JSON.stringify({ type: 'MAKE_MOVE', square: index }));
+
+      // Gửi hành động INCREMENT lên server
+      socket.current.send(JSON.stringify({ type: 'INCREMENT', square: index }));
     }
   };
 
@@ -121,23 +117,23 @@ const App = () => {
     }
   };
 
-  const gameState = winner ? 'GAME_OVER' : (currentPlayer ? 'ACTIVE' : 'WAITING');
+  const gameState = winner ? 'GAME_OVER' : (player ? 'ACTIVE' : 'WAITING');
+  const getPlayerStyle = (p) => {
+    if (p === 'ODD') return 'player-X'; // Dùng lại style của X cho phe Lẻ
+    if (p === 'EVEN') return 'player-O'; // Dùng lại style của O cho phe Chẵn
+    return '';
+  }
 
   return (
     <div className="app-container">
       <div className="app">
         <header>
-          <h1>Tic-Tac-Toe 5x5</h1>
+          <h1>Odd/Even Tic-Tac-Toe</h1>
         </header>
         <main>
           <div className="status-bar">
             <p><strong>Trạng thái:</strong> {status}</p>
-            {player && <p><strong>Bạn là:</strong> <span className={`player-${player}`}>{player}</span></p>}
-          </div>
-
-          <div className="game-info">
-            <div className="player-X">Lượt đi của X: {clickCounts.X}</div>
-            <div className="player-O">Lượt đi của O: {clickCounts.O}</div>
+            {player && <p><strong>Bạn là phe:</strong> <span className={getPlayerStyle(player)}>{player === 'ODD' ? 'LẺ' : 'CHẴN'}</span></p>}
           </div>
 
           <Board
@@ -145,7 +141,7 @@ const App = () => {
             onClick={handleSquareClick}
             winningLine={winningLine}
             pendingMove={pendingMove}
-            disabled={gameState !== 'ACTIVE' || currentPlayer !== player}
+            disabled={gameState !== 'ACTIVE'}
           />
 
           {gameState === 'GAME_OVER' && winner !== 'DISCONNECT' && (
