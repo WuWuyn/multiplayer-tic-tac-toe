@@ -1,0 +1,26 @@
+# Bỏ qua tất cả các thư mục node_modules trong toàn bộ dự án
+**/node_modules
+
+# Bỏ qua các tệp build của Vite (cho client)
+/dist
+/build
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tệp biến môi trường (quan trọng)
+.env
+.env.*
+!.env.example
+
+# Tệp hệ điều hành
+.DS_Store
+Thumbs.db
+
+# Tệp cấu hình của các Editor
+.idea/
+.vscode/
+*.swp
