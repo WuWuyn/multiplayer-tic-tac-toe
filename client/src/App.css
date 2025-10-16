@@ -207,3 +207,90 @@ header h1 {
     box-shadow: 0 0 12px var(--pending-border);
   }
 }
+
+/* --- GIAO DIỆN SẢNH CHỜ (LOBBY) --- */
+.lobby-container {
+  background-color: var(--status-bg);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid #4b5563;
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.lobby-container h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  color: var(--primary-text);
+}
+
+.lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.lobby-button {
+  width: 100%;
+  max-width: 250px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-button {
+  background-color: var(--button-bg);
+  color: white;
+}
+
+.create-button:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 250px;
+}
+
+.lobby-input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  background-color: var(--square-bg);
+  color: var(--primary-text);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.join-button {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.join-button:hover {
+  background-color: #2563eb;
+}
+
+.game-info-bar {
+  display: flex;
+  justify-content: space-between;
+  background-color: var(--status-bg);
+  padding: 0.5rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.global-status {
+  margin-top: 1.5rem;
+}

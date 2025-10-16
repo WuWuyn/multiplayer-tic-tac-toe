@@ -1,137 +1,151 @@
 // server.js
 const WebSocket = require('ws');
+const { v4: uuidv4 } = require('uuid');
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-// --- Trạng thái trò chơi (Game State) ---
-let board;
-let players = [];
-let gameState;
-let rematchRequests;
+let rooms = {};
 
-const initializeGame = () => {
-    board = Array(25).fill(0); // Bàn cờ bắt đầu với số 0
-    gameState = 'WAITING';
-    rematchRequests = new Set();
-    console.log("Máy chủ đã sẵn sàng, đang chờ người chơi.");
-};
-
-initializeGame();
-
-// --- Các hàng thắng ---
 const winningLines = [
     [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
     [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
     [0, 6, 12, 18, 24], [4, 8, 12, 16, 20]
 ];
 
-const broadcast = (data) => {
-    players.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(data));
+const createNewRoom = (roomId) => ({
+    id: roomId,
+    players: [],
+    board: Array(25).fill(0),
+    gameState: 'WAITING',
+    rematchRequests: new Set(),
+});
+
+const broadcastToRoom = (roomId, data, excludeWs = null) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    room.players.forEach(client => {
+        if (client.ws !== excludeWs && client.ws.readyState === WebSocket.OPEN) {
+            client.ws.send(JSON.stringify(data));
         }
     });
 };
 
-const checkGameStatus = () => {
+const checkGameStatus = (board) => {
     for (const line of winningLines) {
         const values = line.map(index => board[index]);
-
-        // Kiểm tra người chơi LẺ (ODD) thắng
-        if (values.every(v => v > 0 && v % 2 !== 0)) {
-            return { winner: 'ODD', winningLine: line };
-        }
-
-        // Kiểm tra người chơi CHẴN (EVEN) thắng
-        if (values.every(v => v > 0 && v % 2 === 0)) {
-            return { winner: 'EVEN', winningLine: line };
-        }
+        if (values.every(v => v > 0 && v % 2 !== 0)) return { winner: 'ODD', winningLine: line };
+        if (values.every(v => v > 0 && v % 2 === 0)) return { winner: 'EVEN', winningLine: line };
     }
-
-    // Game không có hòa, vì luôn có thể click tiếp
     return { winner: null };
 };
 
 wss.on('connection', (ws) => {
     console.log('Một client đã kết nối.');
-
-    if (players.length >= 2) {
-        ws.send(JSON.stringify({ type: 'ERROR', message: 'Phòng chơi đã đầy.' }));
-        ws.close();
-        return;
-    }
-
-    players.push(ws);
-    // Người chơi 1 là ODD, người chơi 2 là EVEN
-    ws.playerRole = (players.length === 1) ? 'ODD' : 'EVEN';
-    ws.send(JSON.stringify({ type: 'PLAYER_ASSIGNED', player: ws.playerRole }));
-    console.log(`Người chơi ${players.length} (${ws.playerRole}) đã kết nối.`);
-
-    if (players.length < 2) {
-        ws.send(JSON.stringify({ type: 'WAITING_FOR_OPPONENT' }));
-    } else {
-        gameState = 'ACTIVE';
-        board = Array(25).fill(0);
-        rematchRequests = new Set();
-        broadcast({
-            type: 'GAME_START',
-            board,
-        });
-        console.log(`Game bắt đầu!`);
-    }
+    ws.roomId = null;
 
     ws.on('message', (message) => {
         const data = JSON.parse(message);
+        const { type, payload } = data;
 
-        // Logic xử lý khi người chơi click vào ô
-        if (data.type === 'INCREMENT' && gameState === 'ACTIVE') {
-            const squareIndex = data.square;
-            if (squareIndex >= 0 && squareIndex < 25) {
-                board[squareIndex]++; // Tăng giá trị ô cờ
+        if (type === 'CREATE_ROOM') {
+            const roomId = uuidv4().substring(0, 6);
+            rooms[roomId] = createNewRoom(roomId);
 
-                // Sau mỗi lần tăng, kiểm tra ngay có ai thắng không
-                const { winner, winningLine } = checkGameStatus();
+            ws.roomId = roomId;
+            const newPlayer = { ws, playerRole: 'ODD' };
+            rooms[roomId].players.push(newPlayer);
+
+            ws.send(JSON.stringify({
+                type: 'ROOM_CREATED',
+                payload: { roomId, player: 'ODD', board: rooms[roomId].board }
+            }));
+            console.log(`Phòng ${roomId} đã được tạo bởi người chơi ODD.`);
+        } else if (type === 'JOIN_ROOM') {
+            const { roomId } = payload;
+            const room = rooms[roomId];
+
+            if (!room || room.players.length >= 2) {
+                const message = !room ? 'Phòng không tồn tại.' : 'Phòng đã đầy.';
+                ws.send(JSON.stringify({ type: 'ERROR', payload: { message } }));
+                return;
+            }
+
+            ws.roomId = roomId;
+            const newPlayer = { ws, playerRole: 'EVEN' };
+            room.players.push(newPlayer);
+            room.gameState = 'ACTIVE';
+
+            // Gửi tin nhắn thành công cho người vừa tham gia
+            ws.send(JSON.stringify({
+                type: 'JOIN_SUCCESS',
+                payload: { roomId, player: 'EVEN', board: room.board }
+            }));
+
+            console.log(`Người chơi EVEN đã tham gia phòng ${roomId}. Bắt đầu game.`);
+            broadcastToRoom(roomId, { type: 'GAME_START' });
+        }
+
+        const { roomId } = ws;
+        if (!roomId || !rooms[roomId]) return;
+        const room = rooms[roomId];
+
+        if (type === 'INCREMENT' && room.gameState === 'ACTIVE') {
+            const { square } = payload;
+            if (square >= 0 && square < 25) {
+                room.board[square]++;
+                const { winner, winningLine } = checkGameStatus(room.board);
 
                 if (winner) {
-                    gameState = 'GAME_OVER';
-                    broadcast({ type: 'GAME_OVER', winner, winningLine, board });
-                    console.log(`Game kết thúc. Người thắng: ${winner}`);
+                    room.gameState = 'GAME_OVER';
+                    broadcastToRoom(roomId, { type: 'GAME_OVER', payload: { winner, winningLine, board: room.board } });
                 } else {
-                    // Nếu chưa ai thắng, chỉ cập nhật lại bàn cờ cho mọi người
-                    broadcast({ type: 'GAME_UPDATE', board });
+                    broadcastToRoom(roomId, { type: 'GAME_UPDATE', payload: { board: room.board } });
                 }
             }
-        } else if (data.type === 'REQUEST_REMATCH' && gameState === 'GAME_OVER') {
-            rematchRequests.add(ws.playerRole);
-            broadcast({ type: 'REMATCH_REQUESTED', player: ws.playerRole });
+        } else if (type === 'REQUEST_REMATCH' && room.gameState === 'GAME_OVER') {
+            const player = room.players.find(p => p.ws === ws);
+            if (player) {
+                room.rematchRequests.add(player.playerRole);
+                broadcastToRoom(roomId, { type: 'REMATCH_REQUESTED', payload: { player: player.playerRole } });
 
-            if (rematchRequests.size === 2) {
-                console.log("Cả hai người chơi đồng ý chơi lại. Bắt đầu ván mới.");
-                gameState = 'ACTIVE';
-                board = Array(25).fill(0);
-                rematchRequests = new Set();
-                broadcast({ type: 'GAME_START', board });
+                if (room.rematchRequests.size === 2) {
+                    room.gameState = 'ACTIVE';
+                    room.board = Array(25).fill(0);
+                    room.rematchRequests.clear();
+                    broadcastToRoom(roomId, { type: 'GAME_START', payload: { board: room.board } });
+                }
             }
         }
     });
 
     ws.on('close', () => {
-        console.log(`Client (${ws.playerRole || 'chưa xác định'}) đã ngắt kết nối.`);
-        const wasInGame = players.includes(ws);
-        players = players.filter(p => p !== ws);
-
-        if (wasInGame && gameState !== 'GAME_OVER') {
-            gameState = 'GAME_OVER';
-            if (players.length > 0) {
-                players[0].send(JSON.stringify({ type: 'OPPONENT_DISCONNECTED' }));
-            }
-            console.log("Một người chơi đã thoát. Game kết thúc.");
+        const { roomId } = ws;
+        if (!roomId || !rooms[roomId]) {
+            console.log('Client chưa tham gia phòng nào đã ngắt kết nối.');
+            return;
         }
 
-        if (players.length === 0 && gameState !== 'WAITING') {
-            initializeGame();
+        const room = rooms[roomId];
+        const playerIndex = room.players.findIndex(p => p.ws === ws);
+
+        if (playerIndex === -1) return;
+
+        const disconnectedPlayer = room.players[playerIndex];
+        console.log(`Client (${disconnectedPlayer?.playerRole || 'chưa xác định'}) trong phòng ${roomId} đã ngắt kết nối.`);
+
+        room.players.splice(playerIndex, 1);
+
+        if (room.players.length === 0) {
+            delete rooms[roomId];
+            console.log(`Phòng ${roomId} đã trống và bị xóa.`);
+        } else {
+            if (room.gameState !== 'GAME_OVER') {
+                room.gameState = 'GAME_OVER';
+                broadcastToRoom(roomId, { type: 'OPPONENT_DISCONNECTED' });
+            }
         }
     });
 });
 
-console.log('Máy chủ Odd/Even Tic-Tac-Toe đã khởi động trên cổng 8080');
+console.log('Máy chủ Odd/Even Tic-Tac-Toe (có phòng chơi) đã khởi động trên cổng 8080');
