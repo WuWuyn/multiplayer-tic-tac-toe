@@ -302,7 +302,6 @@ header h1 {
   margin-top: 1.5rem;
 }
 
-/* --- GIAO DIỆN SẢNH CHỜ (LOBBY) --- */
 .player-name-input {
   margin-bottom: 1rem;
 }
@@ -380,4 +379,79 @@ header h1 {
   font-style: italic;
   font-size: 0.9em;
   color: #9ca3af;
+}
+
+.game-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  position: relative;
+  /* Cần thiết để căn giữa game-info-bar */
+}
+
+.back-button {
+  background: none;
+  border: 1px solid #4b5563;
+  color: #9ca3af;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  position: absolute;
+  /* Đặt nút ở bên trái */
+  left: 0;
+}
+
+.back-button:hover {
+  background-color: #374151;
+  color: white;
+}
+
+.game-info-bar {
+  flex-grow: 1;
+  /* Cho phép nó co giãn để chiếm không gian còn lại */
+  margin-bottom: 0;
+  /* Ghi đè margin cũ */
+  display: flex;
+  justify-content: center;
+  /* Căn giữa nội dung bên trong */
+  gap: 2rem;
+  /* Tạo khoảng cách giữa các mục */
+}
+
+/* --- ROLE SELECTOR IN LOBBY --- */
+.role-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  width: 100%;
+  max-width: 250px;
+}
+
+.role-selector span {
+  margin-right: auto;
+  text-align: left;
+}
+
+.role-selector label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.role-selector input[type="radio"] {
+  accent-color: var(--button-bg);
+}
+
+.role-selector label:hover {
+  background-color: var(--square-bg);
 }

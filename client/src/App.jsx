@@ -24,6 +24,18 @@ const App = () => {
   const [rematchState, setRematchState] = useState({ requestedByMe: false, requestedByOpponent: false });
   const reconnectionTimer = useRef(null);
 
+  const resetGameState = () => {
+    setRoomId(null);
+    setPlayer(null);
+    setBoard(Array(25).fill(0));
+    setWinner(null);
+    setWinningLine([]);
+    setClickCounts({ ODD: 0, EVEN: 0 });
+    setPlayersInfo([]);
+    setRematchState({ requestedByMe: false, requestedByOpponent: false });
+    setStatus('Bạn đã rời phòng.');
+  };
+
   const sendMessage = (type, payload = {}) => {
     if (socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(JSON.stringify({ type, payload }));
@@ -98,10 +110,6 @@ const App = () => {
         setStatus(`Bạn đã thắng! Đối thủ đã rời trận. Đang chờ người chơi mới...`);
         setRematchState({ requestedByMe: false, requestedByOpponent: false });
         break;
-      case 'OPPONENT_DISCONNECTED':
-        setStatus('Đối thủ đã thoát. Trò chơi kết thúc.');
-        setView('lobby');
-        break;
       case 'ERROR':
         setStatus(`Lỗi: ${payload.message}`);
         break;
@@ -111,6 +119,8 @@ const App = () => {
   useEffect(() => { handleServerMessageRef.current = handleServerMessage; });
 
   const connect = useCallback(() => {
+    if (socket.current && socket.current.readyState === WebSocket.OPEN) return;
+
     const ws = new WebSocket(WEBSOCKET_URL);
     socket.current = ws;
 
@@ -152,31 +162,31 @@ const App = () => {
   useEffect(() => {
     connect();
     return () => {
-      if (reconnectionTimer.current) {
-        clearTimeout(reconnectionTimer.current);
-      }
+      if (reconnectionTimer.current) clearTimeout(reconnectionTimer.current);
       socket.current?.close();
     };
   }, [connect]);
 
-  const handleCreateRoom = (playerName) => sendMessage('CREATE_ROOM', { playerName });
+  const handleCreateRoom = (playerName, preferredRole) => sendMessage('CREATE_ROOM', { playerName, preferredRole });
   const handleJoinRoom = (playerName, id) => sendMessage('JOIN_ROOM', { playerName, roomId: id });
+
+  const handleLeaveRoom = () => {
+    if (window.confirm('Bạn có chắc chắn muốn thoát khỏi phòng chơi?')) {
+      sendMessage('LEAVE_ROOM');
+      setView('lobby');
+      resetGameState();
+    }
+  };
 
   const handleSquareClick = (index) => {
     const isDisabled = !!winner || status.startsWith('Đang chờ') || status.includes('mất kết nối');
-    if (isDisabled || pendingMove !== null) {
-      return;
-    }
+    if (isDisabled || pendingMove !== null) return;
 
-    const newBoard = [...board];
-    newBoard[index] += 1;
-    setBoard(newBoard);
-    setPendingMove(index);
     sendMessage('INCREMENT', { square: index });
+    setPendingMove(index);
   };
 
   const handleRematch = () => {
-    // Chỉ cho phép chơi lại khi có đủ 2 người và game đã kết thúc
     if (winner && playersInfo.length === 2) {
       sendMessage('REQUEST_REMATCH');
       setRematchState(prev => ({ ...prev, requestedByMe: true }));
@@ -189,8 +199,6 @@ const App = () => {
   const oddPlayer = playersInfo.find(p => p.role === 'ODD');
   const evenPlayer = playersInfo.find(p => p.role === 'EVEN');
   const currentPlayerInfo = playersInfo.find(p => p.role === player);
-
-  // Điều kiện để hiển thị nút chơi lại
   const canRematch = winner && winner !== 'DISCONNECT' && playersInfo.length === 2;
 
   return (
@@ -207,9 +215,14 @@ const App = () => {
             />
           ) : (
             <>
-              <div className="game-info-bar">
-                <p><strong>Phòng:</strong> {roomId}</p>
-                <p><strong>Bạn là:</strong> <span className={getPlayerStyle(player)}>{currentPlayerInfo?.name || '...'} ({player})</span></p>
+              <div className="game-header">
+                <button className="back-button" onClick={handleLeaveRoom}>
+                  &larr; Thoát phòng
+                </button>
+                <div className="game-info-bar">
+                  <p><strong>Phòng:</strong> {roomId}</p>
+                  <p><strong>Bạn là:</strong> <span className={getPlayerStyle(player)}>{currentPlayerInfo?.name || '...'} ({player})</span></p>
+                </div>
               </div>
 
               <div className="players-display">
@@ -218,7 +231,7 @@ const App = () => {
                   <span className="player-clicks">Clicks: {clickCounts.ODD}</span>
                 </div>
                 <div className="vs-separator">VS</div>
-                <div className={`player-card player-O ${evenPlayer?.name || 'Đang chờ...'} (CHẴN)`}>
+                <div className={`player-card player-O ${evenPlayer?.isConnected === false ? 'disconnected' : ''}`}>
                   <span className="player-name">{evenPlayer?.name || 'Đang chờ...'} (CHẴN)</span>
                   <span className="player-clicks">Clicks: {clickCounts.EVEN}</span>
                 </div>
@@ -233,11 +246,7 @@ const App = () => {
               />
 
               {canRematch && (
-                <button
-                  className="rematch-button"
-                  onClick={handleRematch}
-                  disabled={rematchState.requestedByMe}
-                >
+                <button className="rematch-button" onClick={handleRematch} disabled={rematchState.requestedByMe}>
                   {rematchState.requestedByMe ? 'Đã gửi yêu cầu...' : (rematchState.requestedByOpponent ? 'Đồng ý chơi lại' : 'Chơi lại')}
                 </button>
               )}

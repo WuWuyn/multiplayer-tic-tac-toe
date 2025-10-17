@@ -3,19 +3,24 @@ import React, { useState } from 'react';
 const Lobby = ({ onCreateRoom, onJoinRoom, onShowInstructions }) => {
     const [roomIdInput, setRoomIdInput] = useState('');
     const [playerName, setPlayerName] = useState('');
+    const [preferredRole, setPreferredRole] = useState('ODD'); // Giá trị mặc định là LẺ
 
-    const handleAction = (action) => {
+    const handleCreateAction = () => {
         if (!playerName.trim()) {
             alert('Vui lòng nhập tên của bạn!');
             return;
         }
-        action(playerName.trim());
+        onCreateRoom(playerName.trim(), preferredRole);
     };
 
     const handleJoinSubmit = (e) => {
         e.preventDefault();
+        if (!playerName.trim()) {
+            alert('Vui lòng nhập tên của bạn!');
+            return;
+        }
         if (roomIdInput.trim()) {
-            handleAction((name) => onJoinRoom(name, roomIdInput.trim()));
+            onJoinRoom(playerName.trim(), roomIdInput.trim());
         }
     };
 
@@ -32,9 +37,31 @@ const Lobby = ({ onCreateRoom, onJoinRoom, onShowInstructions }) => {
                     maxLength={15}
                 />
 
+                <div className="role-selector">
+                    <span>Chọn phe khi tạo phòng:</span>
+                    <label>
+                        <input
+                            type="radio"
+                            value="ODD"
+                            checked={preferredRole === 'ODD'}
+                            onChange={() => setPreferredRole('ODD')}
+                        />
+                        LẺ
+                    </label>
+                    <label>
+                        <input
+                            type="radio"
+                            value="EVEN"
+                            checked={preferredRole === 'EVEN'}
+                            onChange={() => setPreferredRole('EVEN')}
+                        />
+                        CHẴN
+                    </label>
+                </div>
+
                 <button
                     className="lobby-button create-button"
-                    onClick={() => handleAction(onCreateRoom)}
+                    onClick={handleCreateAction}
                 >
                     Tạo phòng mới
                 </button>

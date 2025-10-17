@@ -36,19 +36,20 @@ function handleMessage(ws, message) {
         return;
     }
 
-    // ... (Các phần code còn lại của hàm handleMessage giữ nguyên y hệt)
     if (type === 'CREATE_ROOM') {
-        const { playerName } = payload;
+        const { playerName, preferredRole } = payload;
         const roomId = uuidv4().substring(0, 6);
         rooms[roomId] = createNewRoom(roomId);
         ws.roomId = roomId;
 
-        const newPlayer = { ws, playerRole: 'ODD', playerName, sessionId: ws.sessionId };
+        const playerRole = preferredRole === 'EVEN' ? 'EVEN' : 'ODD';
+
+        const newPlayer = { ws, playerRole, playerName, sessionId: ws.sessionId };
         rooms[roomId].players.push(newPlayer);
         sessions[ws.sessionId] = { ...sessions[ws.sessionId], roomId };
 
-        console.log(`Room ${roomId} created by "${playerName}".`);
-        ws.send(JSON.stringify({ type: 'ROOM_CREATED', payload: { roomId, player: 'ODD', board: rooms[roomId].board, playersInfo: getPlayersInfo(rooms[roomId]) } }));
+        console.log(`Room ${roomId} created by "${playerName}" as ${playerRole}.`);
+        ws.send(JSON.stringify({ type: 'ROOM_CREATED', payload: { roomId, player: playerRole, board: rooms[roomId].board, playersInfo: getPlayersInfo(rooms[roomId]) } }));
         return;
     }
 
@@ -59,8 +60,11 @@ function handleMessage(ws, message) {
         if (!room) return ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'Phòng không tồn tại.' } }));
         if (room.players.length >= 2) return ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'Phòng đã đầy.' } }));
 
+        const existingPlayerRole = room.players[0].playerRole;
+        const newPlayerRole = existingPlayerRole === 'ODD' ? 'EVEN' : 'ODD';
+
         ws.roomId = roomId;
-        const newPlayer = { ws, playerRole: 'EVEN', playerName, sessionId: ws.sessionId };
+        const newPlayer = { ws, playerRole: newPlayerRole, playerName, sessionId: ws.sessionId };
         room.players.push(newPlayer);
         room.gameState = 'ACTIVE';
         sessions[ws.sessionId] = { ...sessions[ws.sessionId], roomId };
@@ -68,7 +72,7 @@ function handleMessage(ws, message) {
 
         console.log(`Player "${playerName}" joined room ${roomId}. Match starts.`);
         const playersInfo = getPlayersInfo(room);
-        ws.send(JSON.stringify({ type: 'JOIN_SUCCESS', payload: { roomId, player: 'EVEN', board: room.board, playersInfo } }));
+        ws.send(JSON.stringify({ type: 'JOIN_SUCCESS', payload: { roomId, player: newPlayerRole, board: room.board, playersInfo } }));
         broadcastToRoom(roomId, { type: 'GAME_START', payload: { playersInfo, board: room.board } });
         return;
     }
@@ -78,6 +82,40 @@ function handleMessage(ws, message) {
     const room = rooms[roomId];
 
     switch (type) {
+
+        case 'LEAVE_ROOM': {
+            const playerIndex = room.players.findIndex(p => p.ws === ws);
+            if (playerIndex === -1) return;
+
+            const leavingPlayer = room.players[playerIndex];
+            console.log(`Player "${leavingPlayer.playerName}" has left room ${roomId}.`);
+
+            room.players.splice(playerIndex, 1);
+            delete sessions[leavingPlayer.sessionId];
+
+            if (room.players.length === 0) {
+                delete rooms[roomId];
+                console.log(`Room ${roomId} is empty and has been deleted.`);
+            } else {
+                const remainingPlayer = room.players[0];
+                const newRoom = createNewRoom(roomId);
+                newRoom.players.push(remainingPlayer);
+                rooms[roomId] = newRoom;
+
+                broadcastToRoom(roomId, {
+                    type: 'OPPONENT_LEFT_GAME',
+                    payload: {
+                        winner: remainingPlayer.playerRole,
+                        playersInfo: getPlayersInfo(rooms[roomId]),
+                        board: rooms[roomId].board,
+                        clickCounts: rooms[roomId].clickCounts,
+                    }
+                });
+                console.log(`Player "${remainingPlayer.playerName}" wins by default. Room ${roomId} is now waiting.`);
+            }
+            return;
+        }
+
         case 'INCREMENT':
             if (room.gameState !== 'ACTIVE') return;
             const player = room.players.find(p => p.ws === ws);
