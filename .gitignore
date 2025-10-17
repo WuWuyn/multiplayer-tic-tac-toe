@@ -1,5 +1,6 @@
 # Bỏ qua tất cả các thư mục node_modules trong toàn bộ dự án
-/node_modules
+/client/node_modules
+/server/node_modules
 
 # Bỏ qua các tệp build của Vite (cho client)
 /dist

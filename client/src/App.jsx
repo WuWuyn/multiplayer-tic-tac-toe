@@ -4,6 +4,8 @@ import Lobby from './components/Lobby';
 import InstructionsModal from './components/InstructionsModal';
 import './App.css';
 
+const WEBSOCKET_URL = 'ws://localhost:8080';
+
 const App = () => {
   const [showInstructions, setShowInstructions] = useState(false);
   const [playersInfo, setPlayersInfo] = useState([]);
@@ -13,12 +15,14 @@ const App = () => {
   const socket = useRef(null);
   const handleServerMessageRef = useRef(null);
   const [roomId, setRoomId] = useState(null);
+  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId') || null);
   const [board, setBoard] = useState(Array(25).fill(0));
   const [player, setPlayer] = useState(null);
   const [winner, setWinner] = useState(null);
   const [winningLine, setWinningLine] = useState([]);
   const [pendingMove, setPendingMove] = useState(null);
   const [rematchState, setRematchState] = useState({ requestedByMe: false, requestedByOpponent: false });
+  const reconnectionTimer = useRef(null);
 
   const sendMessage = (type, payload = {}) => {
     if (socket.current?.readyState === WebSocket.OPEN) {
@@ -33,13 +37,28 @@ const App = () => {
     if (payload?.playersInfo) setPlayersInfo(payload.playersInfo);
 
     switch (type) {
+      case 'SESSION_CREATED':
+        setSessionId(payload.sessionId);
+        localStorage.setItem('sessionId', payload.sessionId);
+        break;
       case 'ROOM_CREATED':
       case 'JOIN_SUCCESS':
         setRoomId(payload.roomId);
         setPlayer(payload.player);
         setBoard(payload.board);
         setView('game');
+        setWinner(null);
+        setWinningLine([]);
         setStatus(type === 'ROOM_CREATED' ? 'Đang chờ đối thủ...' : 'Đã tham gia phòng!');
+        break;
+      case 'RECONNECT_SUCCESS':
+        setView('game');
+        setRoomId(payload.roomId);
+        setPlayer(payload.player);
+        setBoard(payload.board);
+        setWinner(payload.winner);
+        setWinningLine(payload.winningLine || []);
+        setStatus('Đã kết nối lại thành công!');
         break;
       case 'GAME_START':
         if (payload?.board) setBoard(payload.board);
@@ -66,9 +85,22 @@ const App = () => {
           setStatus(`Đối thủ muốn chơi lại...`);
         }
         break;
+      case 'PLAYER_RECONNECTED':
+        setStatus('Đối thủ đã kết nối lại.');
+        break;
+      case 'PLAYER_DISCONNECTED':
+        setStatus('Đối thủ đã mất kết nối. Đang chờ kết nối lại...');
+        break;
+      case 'OPPONENT_LEFT_GAME':
+        setWinner(payload.winner);
+        if (payload.board) setBoard(payload.board);
+        if (payload.clickCounts) setClickCounts(payload.clickCounts);
+        setStatus(`Bạn đã thắng! Đối thủ đã rời trận. Đang chờ người chơi mới...`);
+        setRematchState({ requestedByMe: false, requestedByOpponent: false });
+        break;
       case 'OPPONENT_DISCONNECTED':
-        setWinner('DISCONNECT');
         setStatus('Đối thủ đã thoát. Trò chơi kết thúc.');
+        setView('lobby');
         break;
       case 'ERROR':
         setStatus(`Lỗi: ${payload.message}`);
@@ -78,24 +110,61 @@ const App = () => {
 
   useEffect(() => { handleServerMessageRef.current = handleServerMessage; });
 
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
+  const connect = useCallback(() => {
+    const ws = new WebSocket(WEBSOCKET_URL);
     socket.current = ws;
-    ws.onopen = () => setStatus('Đã kết nối!');
-    ws.onclose = () => setStatus('Đã mất kết nối.');
-    ws.onmessage = (event) => handleServerMessageRef.current?.(JSON.parse(event.data));
-    return () => ws.close();
+
+    ws.onopen = () => {
+      setStatus('Đã kết nối!');
+      if (reconnectionTimer.current) {
+        clearTimeout(reconnectionTimer.current);
+        reconnectionTimer.current = null;
+      }
+      const currentSessionId = localStorage.getItem('sessionId');
+      if (currentSessionId) {
+        sendMessage('RECONNECT', { sessionId: currentSessionId });
+      }
+    };
+
+    ws.onclose = () => {
+      setStatus('Đã mất kết nối. Đang thử lại...');
+      if (!reconnectionTimer.current) {
+        reconnectionTimer.current = setTimeout(connect, 3000);
+      }
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleServerMessageRef.current?.(data);
+      } catch (error) {
+        console.error("Lỗi xử lý tin nhắn từ server:", error);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error("Lỗi WebSocket:", err);
+      ws.close();
+    };
+
   }, []);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      if (reconnectionTimer.current) {
+        clearTimeout(reconnectionTimer.current);
+      }
+      socket.current?.close();
+    };
+  }, [connect]);
 
   const handleCreateRoom = (playerName) => sendMessage('CREATE_ROOM', { playerName });
   const handleJoinRoom = (playerName, id) => sendMessage('JOIN_ROOM', { playerName, roomId: id });
 
   const handleSquareClick = (index) => {
-    // Xác định điều kiện vô hiệu hóa bàn cờ
-    const isDisabled = !!winner || status.startsWith('Đang chờ');
-
-    // Nếu bàn cờ bị vô hiệu hóa hoặc đang có một nước đi chờ xử lý, không làm gì cả
-    if (isDisabled || pendingMove) {
+    const isDisabled = !!winner || status.startsWith('Đang chờ') || status.includes('mất kết nối');
+    if (isDisabled || pendingMove !== null) {
       return;
     }
 
@@ -107,7 +176,8 @@ const App = () => {
   };
 
   const handleRematch = () => {
-    if (winner && winner !== 'DISCONNECT') {
+    // Chỉ cho phép chơi lại khi có đủ 2 người và game đã kết thúc
+    if (winner && playersInfo.length === 2) {
       sendMessage('REQUEST_REMATCH');
       setRematchState(prev => ({ ...prev, requestedByMe: true }));
       setStatus('Đã gửi yêu cầu chơi lại...');
@@ -119,6 +189,9 @@ const App = () => {
   const oddPlayer = playersInfo.find(p => p.role === 'ODD');
   const evenPlayer = playersInfo.find(p => p.role === 'EVEN');
   const currentPlayerInfo = playersInfo.find(p => p.role === player);
+
+  // Điều kiện để hiển thị nút chơi lại
+  const canRematch = winner && winner !== 'DISCONNECT' && playersInfo.length === 2;
 
   return (
     <div className="app-container">
@@ -140,12 +213,12 @@ const App = () => {
               </div>
 
               <div className="players-display">
-                <div className="player-card player-X">
+                <div className={`player-card player-X ${oddPlayer?.isConnected === false ? 'disconnected' : ''}`}>
                   <span className="player-name">{oddPlayer?.name || 'Đang chờ...'} (LẺ)</span>
                   <span className="player-clicks">Clicks: {clickCounts.ODD}</span>
                 </div>
                 <div className="vs-separator">VS</div>
-                <div className="player-card player-O">
+                <div className={`player-card player-O ${evenPlayer?.name || 'Đang chờ...'} (CHẴN)`}>
                   <span className="player-name">{evenPlayer?.name || 'Đang chờ...'} (CHẴN)</span>
                   <span className="player-clicks">Clicks: {clickCounts.EVEN}</span>
                 </div>
@@ -156,10 +229,10 @@ const App = () => {
                 onClick={handleSquareClick}
                 winningLine={winningLine}
                 pendingMove={pendingMove}
-                disabled={!!winner || status.startsWith('Đang chờ')}
+                disabled={!!winner || status.startsWith('Đang chờ') || status.includes('mất kết nối')}
               />
 
-              {winner && winner !== 'DISCONNECT' && (
+              {canRematch && (
                 <button
                   className="rematch-button"
                   onClick={handleRematch}

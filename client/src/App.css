@@ -369,3 +369,15 @@ header h1 {
   font-weight: 700;
   color: #6b7280;
 }
+
+.player-card.disconnected {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.player-card.disconnected .player-name::after {
+  content: ' (offline)';
+  font-style: italic;
+  font-size: 0.9em;
+  color: #9ca3af;
+}
