@@ -246,13 +246,13 @@ const App = () => {
               />
 
               {canRematch && (
-                <button className="rematch-button" onClick={handleRematch} disabled={rematchState.requestedByMe}>
+                <button className="btn rematch-button" onClick={handleRematch} disabled={rematchState.requestedByMe}>
                   {rematchState.requestedByMe ? 'Đã gửi yêu cầu...' : (rematchState.requestedByOpponent ? 'Đồng ý chơi lại' : 'Chơi lại')}
                 </button>
               )}
             </>
           )}
-          <div className="status-bar global-status"><p><strong>Trạng thái:</strong> {status}</p></div>
+          <div className="status-bar"><p><strong>Trạng thái:</strong> {status}</p></div>
         </main>
       </div>
     </div>

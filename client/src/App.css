@@ -1,27 +1,32 @@
 /* --- BIẾN MÀU VÀ FONT --- */
 :root {
-  --background-color: #12181b;
-  --primary-text: #e0e0e0;
-  --board-bg: #1f2937;
-  --square-bg: #374151;
-  --square-hover-bg: #4b5563;
-  --player-x-color: #ef4444;
-  --player-o-color: #3b82f6;
-  --winning-bg: #f59e0b;
+  --background-start-rgb: 20, 28, 32;
+  --background-end-rgb: 38, 50, 56;
+  --primary-text: #eceff1;
+  --secondary-text: #b0bec5;
+  --board-bg: rgba(12, 16, 18, 0.4);
+  --square-bg: rgba(255, 255, 255, 0.05);
+  --square-hover-bg: rgba(255, 255, 255, 0.1);
+  --player-x-color: #ff5252;
+  --player-o-color: #448aff;
+  --winning-bg: #ffab40;
   --winning-text: #121212;
-  --pending-border: #eab308;
-  --status-bg: #1f2937;
-  --button-bg: #10b981;
-  --button-hover-bg: #059669;
-  --disabled-button-bg: #4b5563;
-  --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --pending-border: #ffd740;
+  --status-bg: rgba(12, 16, 18, 0.6);
+  --button-bg: linear-gradient(45deg, #26a69a, #00796b);
+  --button-hover-bg: linear-gradient(45deg, #00796b, #26a69a);
+  --disabled-button-bg: #546e7a;
+  --font-family: 'Poppins', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --shadow-color: rgba(0, 0, 0, 0.5);
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
 /* --- THIẾT LẬP CƠ BẢN --- */
 body {
-  background-color: var(--background-color);
+  background: radial-gradient(circle, rgb(var(--background-end-rgb)) 0%, rgb(var(--background-start-rgb)) 100%);
   color: var(--primary-text);
   font-family: var(--font-family);
   margin: 0;
@@ -29,57 +34,47 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- BỐ CỤC CHÍNH (SỬA LỖI CĂN GIỮA) --- */
+/* --- BỐ CỤC CHÍNH --- */
 .app-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 1rem;
+  padding: 1.5rem;
   box-sizing: border-box;
-  /* Đảm bảo padding không gây tràn */
 }
 
 .app {
   text-align: center;
   width: 100%;
   max-width: 600px;
-  /* Giới hạn chiều rộng tối đa */
 }
 
 /* --- TIÊU ĐỀ --- */
 header h1 {
-  font-size: clamp(2rem, 8vw, 2.8rem);
-  /* Kích thước font linh hoạt */
+  font-size: clamp(2.2rem, 8vw, 3rem);
   font-weight: 700;
   color: var(--primary-text);
-  text-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
-  margin: 0 0 1.5rem 0;
+  text-shadow: 0 0 20px rgba(0, 150, 136, 0.5);
+  margin: 0 0 2rem 0;
+  letter-spacing: 1px;
 }
 
 /* --- KHUNG THÔNG TIN VÀ TRẠNG THÁI --- */
-.status-bar,
-.game-info {
+.status-bar {
   background-color: var(--status-bg);
+  backdrop-filter: blur(10px);
   padding: 1rem 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  border: 1px solid #4b5563;
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 6px 20px var(--shadow-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 1rem;
 }
 
 .status-bar p {
-  margin: 0.5rem 0;
+  margin: 0;
   font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.game-info {
-  display: flex;
-  justify-content: space-around;
-  padding: 0.75rem;
-  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -91,57 +86,48 @@ header h1 {
   color: var(--player-o-color);
 }
 
-/* --- BÀN CỜ (SỬA LỖI CĂN CHỈNH VÀ KÍCH THƯỚC) --- */
+/* --- BÀN CỜ --- */
 .board {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  /* Sử dụng aspect-ratio để bàn cờ luôn là hình vuông */
+  gap: 10px;
   aspect-ratio: 1 / 1;
   width: 100%;
-  /* Chiếm toàn bộ chiều rộng của container cha */
   background-color: var(--board-bg);
-  padding: 8px;
-  border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  padding: 10px;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 10px 35px var(--shadow-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* --- VÔ HIỆU HÓA BÀN CỜ --- */
 .board.disabled {
   opacity: 0.6;
   pointer-events: none;
-  /* Ngăn chặn mọi sự kiện click */
 }
 
-/* --- Ô CỜ (SỬA LỖI CO DÃN) --- */
+/* --- Ô CỜ --- */
 .square {
-  /* width và height không cần thiết vì grid đã quản lý */
   aspect-ratio: 1 / 1;
-  /* Đảm bảo mỗi ô luôn là hình vuông */
   background: var(--square-bg);
   border: 2px solid transparent;
   border-radius: 10px;
   color: var(--primary-text);
-  /* Kích thước font linh hoạt nhưng không làm thay đổi kích thước ô */
   font-size: clamp(1rem, 7vw, 2.5rem);
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
-
-  /* Căn giữa X, O hoàn hảo trong ô */
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   display: flex;
   justify-content: center;
   align-items: center;
-
   line-height: 1;
-  /* Ngăn chặn line-height ảnh hưởng đến kích thước */
   padding: 0;
-  /* Xóa padding mặc định của button */
 }
 
-.square:hover:not([disabled]) {
+.square:hover:not(:disabled) {
   background: var(--square-hover-bg);
-  transform: scale(1.05);
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
 }
 
 .square:disabled {
@@ -149,11 +135,11 @@ header h1 {
 }
 
 .square.player-X {
-  text-shadow: 0 0 10px var(--player-x-color);
+  text-shadow: 0 0 12px var(--player-x-color);
 }
 
 .square.player-O {
-  text-shadow: 0 0 10px var(--player-o-color);
+  text-shadow: 0 0 12px var(--player-o-color);
 }
 
 .square.winning {
@@ -167,69 +153,56 @@ header h1 {
   animation: pending-glow 1.5s infinite alternate;
 }
 
-/* --- NÚT CHƠI LẠI --- */
-.rematch-button {
-  background-color: var(--button-bg);
+/* --- NÚT --- */
+.btn {
+  background: var(--button-bg);
   color: white;
   padding: 12px 28px;
-  margin-top: 1.5rem;
   border: none;
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 121, 107, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.rematch-button:disabled {
-  background-color: var(--disabled-button-bg);
+.btn:disabled {
+  background: var(--disabled-button-bg);
   cursor: not-allowed;
   box-shadow: none;
 }
 
-.rematch-button:hover:not([disabled]) {
-  background-color: var(--button-hover-bg);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+.btn:hover:not(:disabled) {
+  background: var(--button-hover-bg);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 121, 107, 0.4);
 }
 
-/* --- ANIMATIONS --- */
-@keyframes pulse {
-  from {
-    transform: scale(1);
-  }
-
-  to {
-    transform: scale(1.05);
-  }
+.rematch-button {
+  margin-top: 1.5rem;
 }
 
-@keyframes pending-glow {
-  from {
-    box-shadow: 0 0 4px var(--pending-border);
-  }
-
-  to {
-    box-shadow: 0 0 12px var(--pending-border);
-  }
-}
 
 /* --- GIAO DIỆN SẢNH CHỜ (LOBBY) --- */
 .lobby-container {
   background-color: var(--status-bg);
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  border: 1px solid #4b5563;
+  backdrop-filter: blur(10px);
+  padding: 2.5rem;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 8px 30px var(--shadow-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   margin-top: 2rem;
   text-align: center;
+  animation: slide-up 0.5s ease-out;
 }
 
 .lobby-container h2 {
   margin-top: 0;
-  margin-bottom: 1.5rem;
-  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  font-size: 1.8rem;
   color: var(--primary-text);
 }
 
@@ -240,25 +213,27 @@ header h1 {
   align-items: center;
 }
 
-.lobby-button {
+.lobby-input {
   width: 100%;
-  max-width: 250px;
-  padding: 12px 20px;
-  font-size: 1rem;
-  font-weight: 600;
-  border: none;
+  max-width: 300px;
+  padding: 14px;
   border-radius: 8px;
-  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: var(--square-bg);
+  color: var(--primary-text);
+  font-size: 1rem;
+  text-align: center;
   transition: all 0.2s ease;
 }
 
-.create-button {
-  background-color: var(--button-bg);
-  color: white;
+.lobby-input::placeholder {
+  color: var(--secondary-text);
 }
 
-.create-button:hover {
-  background-color: var(--button-hover-bg);
+.lobby-input:focus {
+  outline: none;
+  border-color: var(--button-hover-bg);
+  box-shadow: 0 0 10px rgba(0, 121, 107, 0.5);
 }
 
 .join-form {
@@ -266,59 +241,23 @@ header h1 {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-  max-width: 250px;
-}
-
-.lobby-input {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #4b5563;
-  background-color: var(--square-bg);
-  color: var(--primary-text);
-  font-size: 1rem;
-  text-align: center;
-}
-
-.join-button {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.join-button:hover {
-  background-color: #2563eb;
-}
-
-.game-info-bar {
-  display: flex;
-  justify-content: space-between;
-  background-color: var(--status-bg);
-  padding: 0.5rem 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-  font-weight: 600;
-}
-
-.global-status {
-  margin-top: 1.5rem;
-}
-
-.player-name-input {
-  margin-bottom: 1rem;
+  max-width: 300px;
 }
 
 .instructions-button {
   background: none;
-  border: 1px solid #4b5563;
-  color: #9ca3af;
-  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--secondary-text);
+  padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
   margin-top: 1.5rem;
   transition: all 0.2s ease;
+  font-weight: 600;
 }
 
 .instructions-button:hover {
-  background-color: #374151;
+  background-color: var(--square-hover-bg);
   color: white;
 }
 
@@ -327,17 +266,19 @@ header h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   padding: 0 1rem;
+  gap: 1rem;
 }
 
 .player-card {
   background-color: var(--square-bg);
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  border-radius: var(--border-radius-md);
   text-align: center;
-  width: 40%;
-  border-bottom: 4px solid;
+  flex: 1;
+  border-left: 5px solid;
+  transition: all 0.3s ease;
 }
 
 .player-card.player-X {
@@ -351,7 +292,7 @@ header h1 {
 .player-name {
   display: block;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   margin-bottom: 0.25rem;
   white-space: nowrap;
   overflow: hidden;
@@ -359,14 +300,15 @@ header h1 {
 }
 
 .player-clicks {
-  font-size: 0.9rem;
-  color: #d1d5db;
+  font-size: 1rem;
+  color: var(--secondary-text);
+  font-weight: 600;
 }
 
 .vs-separator {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
-  color: #6b7280;
+  color: #b0bec5;
 }
 
 .player-card.disconnected {
@@ -378,47 +320,42 @@ header h1 {
   content: ' (offline)';
   font-style: italic;
   font-size: 0.9em;
-  color: #9ca3af;
+  color: var(--secondary-text);
 }
+
 
 .game-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 1rem;
-  position: relative;
-  /* Cần thiết để căn giữa game-info-bar */
+  width: 100%;
 }
 
 .back-button {
-  background: none;
-  border: 1px solid #4b5563;
-  color: #9ca3af;
-  padding: 8px 16px;
+  background: var(--square-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--secondary-text);
+  padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
   transition: all 0.2s ease;
-  position: absolute;
-  /* Đặt nút ở bên trái */
-  left: 0;
 }
 
 .back-button:hover {
-  background-color: #374151;
+  background-color: var(--square-hover-bg);
   color: white;
 }
 
 .game-info-bar {
-  flex-grow: 1;
-  /* Cho phép nó co giãn để chiếm không gian còn lại */
-  margin-bottom: 0;
-  /* Ghi đè margin cũ */
+  background-color: var(--status-bg);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
   display: flex;
-  justify-content: center;
-  /* Căn giữa nội dung bên trong */
   gap: 2rem;
-  /* Tạo khoảng cách giữa các mục */
 }
 
 /* --- ROLE SELECTOR IN LOBBY --- */
@@ -427,31 +364,79 @@ header h1 {
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   font-weight: 600;
+  background-color: var(--square-bg);
+  padding: 0.5rem;
+  border-radius: 8px;
   width: 100%;
-  max-width: 250px;
-}
-
-.role-selector span {
-  margin-right: auto;
-  text-align: left;
+  max-width: 300px;
 }
 
 .role-selector label {
+  flex: 1;
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 10px;
   border-radius: 6px;
   transition: background-color 0.2s;
+  position: relative;
 }
 
 .role-selector input[type="radio"] {
-  accent-color: var(--button-bg);
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
-.role-selector label:hover {
-  background-color: var(--square-bg);
+.role-selector input[type="radio"]:checked+span {
+  background-color: #00796b;
+  color: white;
+}
+
+.role-selector span {
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+
+/* --- ANIMATIONS --- */
+@keyframes pulse {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 10px var(--winning-bg);
+  }
+
+  to {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px var(--winning-bg);
+  }
+}
+
+@keyframes pending-glow {
+  from {
+    box-shadow: 0 0 4px var(--pending-border);
+  }
+
+  to {
+    box-shadow: 0 0 12px var(--pending-border);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
